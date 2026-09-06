@@ -18,19 +18,17 @@ Bu sənəd **QuranOxu** tətbiqinin Google Play Store-a uğurla buraxılması ü
   - `isMinifyEnabled = true` və `isShrinkResources = true` aktivləşdirildi.
 - [x] **ProGuard / R8 qaydaları (`app/proguard-rules.pro`):**
   - Room, SQLite, Kotlinx, Coroutines, Media3/ExoPlayer və Compose üçün qoruma qaydaları yazıldı.
-- [x] **Production Bundle (`.aab`) və Release APK çıxarışı:**
-  - `./gradlew assembleRelease bundleRelease` uğurla icra olundu (0 xəta).
-  - İstehsalat faylı hazırdır: `app/build/outputs/bundle/release/app-release.aab` (5.7 MB).
-  - İmzalanmış test APK-sı: `app/build/outputs/apk/release/app-release.apk` (3.5 MB).
-- [x] **Real Cihazda (Xiaomi POCO F5) Sınaq:**
-  - İmzalanmış release APK birbaşa telefona quraşdırıldı, Room bazasının, ərəbcə mətnlərin və audio sisteminin qüsursuz işlədiyi təsdiqləndi.
-- [x] **Marketinq Vizual Materialları:**
-  - **Tətbiq İkonu:** 512x512 PNG hazırlandı (`store_assets/icon_512.png`).
-  - **Qapaq Şəkli (Feature Graphic):** 1024x500 PNG hazırlandı (`store_assets/feature_graphic.png`).
-- [x] **Məxfilik Siyasəti (Privacy Policy):**
-  - `PRIVACY_POLICY.md` və veb üçün hazır `privacy-policy.html` yaradıldı.
-- [x] **Mağaza Mətnləri (Metadata):**
-  - Tətbiqin adı, qısa və geniş təsvirləri `store_assets/STORE_LISTING.md` faylında hazırlandı.
+- [x] **Firebase Crashlytics & Analytics İnteqrasiyası:**
+  - `google-services.json` inteqrasiya edildi, Crashlytics xəta izləmə və Analytics hadisələri aktivləşdirildi.
+  - Kod bazası `versionCode = 2`, `v1.0.1` versiyasına qaldırıldı.
+- [x] **Google Play Developer API Avtomatlaşdırması:**
+  - Service Account açarı (`play-service-account.json`) ilə Play Console-a API çıxışı təmin edildi.
+  - [scripts/publish_to_play.py](file:///Users/sananhaji/AndroidStudioProjects/Quranoxu/scripts/publish_to_play.py) vasitəsilə:
+    - `app-release.aab` (Version Code 2) birbaşa Google Play **Internal Testing** trekinə avtomatik yükləndi!
+    - **512x512 İkon** və **1024x500 Feature Graphic** mağazaya avtomatik yükləndi!
+    - Bütün Azərbaycan dilindəki başlıq və təsvirlər Play Store-a avtomatik yazıldı!
+- [x] **GitHub Push və Repozitoriya:**
+  - Bütün dəyişikliklər, o cümlədən [privacy-policy.html](https://github.com/SananHaji/QuranOxu/blob/main/privacy-policy.html) uğurla GitHub-a push edildi.
 
 ---
 
