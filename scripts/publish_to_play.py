@@ -82,7 +82,7 @@ def main(track='internal'):
 
     # 4. Update Store Listing Texts
     print("📝 Updating Store Listing texts...")
-    title = "QuranOxu - Quran və Tərcüməsi"
+    title = "Quran Oxu - Quran və Tərcüməsi"
     short_description = "Azərbaycan dilində Quran oxumaq, dinləmək və ayələri öyrənmək üçün tətbiq."
     
     # Read full description from store_assets/STORE_LISTING.md if available

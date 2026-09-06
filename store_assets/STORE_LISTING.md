@@ -8,7 +8,7 @@ Play Console-da **Store Presence -> Main Store Listing** bölməsinə daxil olub
 
 ### Tətbiqin Adı (App Name - maks 30 simvol)
 ```text
-QuranOxu - Quran və Tərcüməsi
+Quran Oxu - Quran və Tərcüməsi
 ```
 
 ### Qısa Təsvir (Short Description - maks 80 simvol)
