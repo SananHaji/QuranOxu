@@ -147,6 +147,24 @@ def main(track='internal'):
         except Exception as e:
             print(f"⚠️ Warning uploading feature graphic: {e}")
 
+    # 6. Upload Phone Screenshots
+    screenshot_files = sorted(glob.glob("store_assets/screenshots/screen_*.png"))
+    if screenshot_files:
+        print(f"📱 Uploading {len(screenshot_files)} Phone Screenshots...")
+        for s_path in screenshot_files:
+            try:
+                s_media = MediaFileUpload(s_path, mimetype='image/png')
+                service.edits().images().upload(
+                    packageName=PACKAGE_NAME,
+                    editId=edit_id,
+                    language=LANGUAGE,
+                    imageType='phoneScreenshots',
+                    media_body=s_media
+                ).execute()
+                print(f"✅ Uploaded screenshot: {os.path.basename(s_path)}")
+            except Exception as e:
+                print(f"⚠️ Warning uploading {s_path}: {e}")
+
     # 6. Commit the edit
     print("💾 Committing changes to Google Play Console...")
     commit_request = service.edits().commit(packageName=PACKAGE_NAME, editId=edit_id)
