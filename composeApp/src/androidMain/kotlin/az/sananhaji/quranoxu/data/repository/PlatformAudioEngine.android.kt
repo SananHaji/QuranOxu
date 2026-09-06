@@ -54,4 +54,16 @@ actual class PlatformAudioEngine actual constructor() {
             }
         } catch (e: Exception) {}
     }
+
+    actual fun downloadSurah(
+        surahIndex: Int,
+        totalVerses: Int,
+        language: String,
+        onProgress: (downloaded: Int, total: Int) -> Unit
+    ): Boolean = true
+
+    actual fun cancelDownload(surahIndex: Int) {}
+    actual fun isSurahDownloaded(surahIndex: Int, totalVerses: Int, language: String): Boolean = false
+    actual fun deleteSurah(surahIndex: Int, language: String): Boolean = true
+    actual fun getLocalAudioUrlOrRemote(surahIndex: Int, verseNumber: Int, language: String, remoteUrl: String): String = remoteUrl
 }

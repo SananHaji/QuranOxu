@@ -53,9 +53,18 @@ fun VerseCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPlayingThisVerse) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isPlayingThisVerse) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = if (isPlayingThisVerse) {
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+        },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isPlayingThisVerse) 4.dp else 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -73,14 +82,18 @@ fun VerseCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .background(
+                                if (isPlayingThisVerse) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.primaryContainer
+                            )
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = "Ayə ${verse.verseNumber}",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (isPlayingThisVerse) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
                     }
@@ -95,7 +108,7 @@ fun VerseCard(
                         Icon(
                             imageVector = Icons.Default.VolumeUp,
                             contentDescription = "Dinlə",
-                            tint = if (isPlayingThisVerse) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                            tint = if (isPlayingThisVerse) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 

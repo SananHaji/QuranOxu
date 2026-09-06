@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 expect class PlatformAudioEngine() {
     fun playUrl(url: String, onCompleted: () -> Unit)
@@ -17,6 +18,16 @@ expect class PlatformAudioEngine() {
     fun resume()
     fun stop()
     fun setRate(speed: Float)
+    fun downloadSurah(
+        surahIndex: Int,
+        totalVerses: Int,
+        language: String,
+        onProgress: (downloaded: Int, total: Int) -> Unit
+    ): Boolean
+    fun cancelDownload(surahIndex: Int)
+    fun isSurahDownloaded(surahIndex: Int, totalVerses: Int, language: String): Boolean
+    fun deleteSurah(surahIndex: Int, language: String): Boolean
+    fun getLocalAudioUrlOrRemote(surahIndex: Int, verseNumber: Int, language: String, remoteUrl: String): String
 }
 
 class AudioRepositoryKmpImpl(
@@ -43,7 +54,10 @@ class AudioRepositoryKmpImpl(
     }
 
     override fun playVerse(surahIndex: Int, verseNumber: Int, totalVerses: Int, surahName: String, audioLanguage: String) {
-        val url = getAudioUrl(surahIndex, verseNumber, audioLanguage)
+        val remoteUrl = getAudioUrl(surahIndex, verseNumber, audioLanguage)
+        val effectiveUrl = audioEngine.getLocalAudioUrlOrRemote(surahIndex, verseNumber, audioLanguage, remoteUrl)
+        val isOffline = effectiveUrl != remoteUrl
+
         _audioStateFlow.value = AudioStateEntity(
             isPlaying = true,
             isBuffering = false,
@@ -52,14 +66,20 @@ class AudioRepositoryKmpImpl(
             verseNumber = verseNumber,
             totalVerses = totalVerses,
             audioLanguage = audioLanguage,
-            playbackSpeed = _audioStateFlow.value.playbackSpeed
+            isOfflineAvailable = isOffline,
+            playbackSpeed = _audioStateFlow.value.playbackSpeed,
+            remainingSleepTimerSeconds = _audioStateFlow.value.remainingSleepTimerSeconds
         )
-        audioEngine.playUrl(url) {
+
+        audioEngine.playUrl(effectiveUrl) {
             scope.launch {
-                if (verseNumber < totalVerses) {
-                    playVerse(surahIndex, verseNumber + 1, totalVerses, surahName, audioLanguage)
-                } else {
-                    stopAudio()
+                val current = _audioStateFlow.value
+                if (current.isPlaying && current.surahIndex == surahIndex && current.verseNumber == verseNumber) {
+                    if (verseNumber < totalVerses) {
+                        playVerse(surahIndex, verseNumber + 1, totalVerses, surahName, audioLanguage)
+                    } else {
+                        stopAudio()
+                    }
                 }
             }
         }
@@ -81,7 +101,9 @@ class AudioRepositoryKmpImpl(
 
     override fun stopAudio() {
         audioEngine.stop()
-        _audioStateFlow.value = _audioStateFlow.value.copy(isPlaying = false)
+        _audioStateFlow.value = AudioStateEntity(
+            playbackSpeed = _audioStateFlow.value.playbackSpeed
+        )
     }
 
     override fun nextVerse() {
@@ -123,11 +145,95 @@ class AudioRepositoryKmpImpl(
         _audioStateFlow.value = _audioStateFlow.value.copy(playbackSpeed = speed)
     }
 
-    override suspend fun downloadSurah(surahIndex: Int, totalVerses: Int, language: String, onProgress: ((downloaded: Int, total: Int) -> Unit)?): Boolean = true
-    override fun cancelDownloadSurah(surahIndex: Int, totalVerses: Int, language: String) {}
-    override fun getSurahDownloadStatus(surahIndex: Int, totalVerses: Int, language: String): SurahDownloadStatus = SurahDownloadStatus(surahIndex = surahIndex, totalVerses = totalVerses)
-    override fun isSurahFullyDownloaded(surahIndex: Int, totalVerses: Int, language: String): Boolean = false
-    override fun deleteSurahAudio(surahIndex: Int, language: String): Boolean = true
+    override suspend fun downloadSurah(
+        surahIndex: Int,
+        totalVerses: Int,
+        language: String,
+        onProgress: ((downloaded: Int, total: Int) -> Unit)?
+    ): Boolean {
+        val current = _downloadStatusFlow.value.toMutableMap()
+        current[surahIndex] = SurahDownloadStatus(
+            surahIndex = surahIndex,
+            isDownloading = true,
+            downloadedVerses = 0,
+            totalVerses = totalVerses,
+            progress = 0f
+        )
+        _downloadStatusFlow.value = current
+
+        return withContext(Dispatchers.Default) {
+            val success = audioEngine.downloadSurah(surahIndex, totalVerses, language) { downloaded, total ->
+                scope.launch {
+                    val updated = _downloadStatusFlow.value.toMutableMap()
+                    updated[surahIndex] = SurahDownloadStatus(
+                        surahIndex = surahIndex,
+                        isDownloading = true,
+                        downloadedVerses = downloaded,
+                        totalVerses = total,
+                        progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+                    )
+                    _downloadStatusFlow.value = updated
+                    onProgress?.invoke(downloaded, total)
+                }
+            }
+
+            val finalMap = _downloadStatusFlow.value.toMutableMap()
+            if (success) {
+                finalMap[surahIndex] = SurahDownloadStatus(
+                    surahIndex = surahIndex,
+                    isDownloaded = true,
+                    isDownloading = false,
+                    downloadedVerses = totalVerses,
+                    totalVerses = totalVerses,
+                    progress = 1.0f
+                )
+            } else {
+                finalMap[surahIndex] = SurahDownloadStatus(
+                    surahIndex = surahIndex,
+                    isDownloaded = false,
+                    isDownloading = false,
+                    totalVerses = totalVerses
+                )
+            }
+            _downloadStatusFlow.value = finalMap
+            success
+        }
+    }
+
+    override fun cancelDownloadSurah(surahIndex: Int, totalVerses: Int, language: String) {
+        audioEngine.cancelDownload(surahIndex)
+        val map = _downloadStatusFlow.value.toMutableMap()
+        map[surahIndex] = SurahDownloadStatus(surahIndex = surahIndex, totalVerses = totalVerses)
+        _downloadStatusFlow.value = map
+    }
+
+    override fun getSurahDownloadStatus(surahIndex: Int, totalVerses: Int, language: String): SurahDownloadStatus {
+        val cached = _downloadStatusFlow.value[surahIndex]
+        if (cached != null && (cached.isDownloading || cached.isDownloaded)) {
+            return cached
+        }
+        val isDownloaded = audioEngine.isSurahDownloaded(surahIndex, totalVerses, language)
+        return SurahDownloadStatus(
+            surahIndex = surahIndex,
+            isDownloaded = isDownloaded,
+            isDownloading = false,
+            totalVerses = totalVerses,
+            progress = if (isDownloaded) 1f else 0f
+        )
+    }
+
+    override fun isSurahFullyDownloaded(surahIndex: Int, totalVerses: Int, language: String): Boolean {
+        return audioEngine.isSurahDownloaded(surahIndex, totalVerses, language)
+    }
+
+    override fun deleteSurahAudio(surahIndex: Int, language: String): Boolean {
+        val res = audioEngine.deleteSurah(surahIndex, language)
+        val map = _downloadStatusFlow.value.toMutableMap()
+        map.remove(surahIndex)
+        _downloadStatusFlow.value = map
+        return res
+    }
+
     override fun getCacheInfo(): AudioCacheInfo = AudioCacheInfo(0L, "0 MB", 0)
     override fun clearAllAudioCache(): Boolean = true
 }
