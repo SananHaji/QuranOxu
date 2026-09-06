@@ -149,6 +149,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Initialize Analytics & Crashlytics
+        az.sananhaji.quranoxu.util.AppAnalytics.init(this)
+
         // Schedule daily reading reminder notification at 20:00 (8 PM)
         ReminderManager.scheduleDailyReminder(applicationContext)
 

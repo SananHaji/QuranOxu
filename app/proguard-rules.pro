@@ -29,3 +29,11 @@
 # Compose
 -keepclassmembers class * extends androidx.compose.ui.Modifier { *; }
 -dontwarn androidx.compose.**
+
+# Firebase Analytics & Crashlytics
+-keepattributes *Annotation*,SourceFile,LineNumberTable
+-keepclassmembers class * {
+    @com.google.firebase.crashlytics.** *;
+}
+-dontwarn com.google.firebase.**
+
