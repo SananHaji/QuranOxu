@@ -22,6 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Quran oxu"
+rootProject.name = "QuranOxu"
 include(":app")
+include(":composeApp")
  

@@ -9,10 +9,16 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
+build/
+**/build/
+.kotlin/
+*.hprof
 /captures
 .externalNativeBuild
 .cxx
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
 local.properties
 *.jks
 *.keystore
