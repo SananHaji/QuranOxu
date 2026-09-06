@@ -66,7 +66,8 @@ data class AudioStateEntity(
     val audioLanguage: String = "arabic",
     val remainingSleepTimerSeconds: Long = 0L,
     val isBuffering: Boolean = false,
-    val isOfflineAvailable: Boolean = false
+    val isOfflineAvailable: Boolean = false,
+    val playbackSpeed: Float = 1.0f
 )
 
 data class SurahDownloadStatus(

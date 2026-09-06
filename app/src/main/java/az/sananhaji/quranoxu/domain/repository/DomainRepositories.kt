@@ -37,7 +37,9 @@ interface AudioRepositoryContract {
     fun previousVerse()
     fun setSleepTimer(minutes: Int)
     fun cancelSleepTimer()
+    fun setPlaybackSpeed(speed: Float)
     suspend fun downloadSurah(surahIndex: Int, totalVerses: Int, language: String, onProgress: ((downloaded: Int, total: Int) -> Unit)? = null): Boolean
+    fun cancelDownloadSurah(surahIndex: Int, totalVerses: Int = 0, language: String = "arabic")
     fun getSurahDownloadStatus(surahIndex: Int, totalVerses: Int, language: String): az.sananhaji.quranoxu.domain.model.SurahDownloadStatus
     fun isSurahFullyDownloaded(surahIndex: Int, totalVerses: Int, language: String): Boolean
     fun deleteSurahAudio(surahIndex: Int, language: String): Boolean

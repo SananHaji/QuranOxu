@@ -3,7 +3,10 @@ package az.sananhaji.quranoxu.data.audio
 import android.content.Context
 import az.sananhaji.quranoxu.domain.model.AudioCacheInfo
 import az.sananhaji.quranoxu.domain.model.SurahDownloadStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +16,8 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.coroutineContext
 
 class AudioCacheManager(private val context: Context) {
 
@@ -21,6 +26,8 @@ class AudioCacheManager(private val context: Context) {
             if (!exists()) mkdirs()
         }
     }
+
+    private val activeDownloadJobs = ConcurrentHashMap<Int, Job>()
 
     private val _downloadStatusFlow = MutableStateFlow<Map<Int, SurahDownloadStatus>>(emptyMap())
     val downloadStatusFlow: StateFlow<Map<Int, SurahDownloadStatus>> = _downloadStatusFlow.asStateFlow()
@@ -116,6 +123,11 @@ class AudioCacheManager(private val context: Context) {
         language: String,
         onProgress: ((downloaded: Int, total: Int) -> Unit)? = null
     ): Boolean = withContext(Dispatchers.IO) {
+        val currentJob = coroutineContext[Job]
+        if (currentJob != null) {
+            activeDownloadJobs[surahIndex] = currentJob
+        }
+
         updateDownloadStatus(
             surahIndex,
             SurahDownloadStatus(
@@ -129,47 +141,111 @@ class AudioCacheManager(private val context: Context) {
         )
 
         var downloadedCount = 0
-        for (v in 1..totalVerses) {
-            val file = getVerseFile(surahIndex, v, language)
-            if (isVerseCached(surahIndex, v, language)) {
-                downloadedCount++
-            } else {
-                val ok = downloadSingleVerse(surahIndex, v, language, file)
-                if (ok) {
+        try {
+            for (v in 1..totalVerses) {
+                coroutineContext.ensureActive()
+
+                val file = getVerseFile(surahIndex, v, language)
+                if (isVerseCached(surahIndex, v, language)) {
                     downloadedCount++
+                } else {
+                    val ok = downloadSingleVerse(surahIndex, v, language, file)
+                    if (ok) {
+                        downloadedCount++
+                    }
                 }
+
+                val progress = downloadedCount.toFloat() / totalVerses
+                updateDownloadStatus(
+                    surahIndex,
+                    SurahDownloadStatus(
+                        surahIndex = surahIndex,
+                        isDownloaded = downloadedCount == totalVerses,
+                        isDownloading = downloadedCount < totalVerses,
+                        downloadedVerses = downloadedCount,
+                        totalVerses = totalVerses,
+                        progress = progress,
+                        sizeBytes = getSurahDiskSize(surahIndex, language)
+                    )
+                )
+                onProgress?.invoke(downloadedCount, totalVerses)
             }
 
-            val progress = downloadedCount.toFloat() / totalVerses
+            val isFullyDownloaded = downloadedCount == totalVerses
             updateDownloadStatus(
                 surahIndex,
                 SurahDownloadStatus(
                     surahIndex = surahIndex,
-                    isDownloaded = downloadedCount == totalVerses,
-                    isDownloading = downloadedCount < totalVerses,
+                    isDownloaded = isFullyDownloaded,
+                    isDownloading = false,
                     downloadedVerses = downloadedCount,
                     totalVerses = totalVerses,
-                    progress = progress,
+                    progress = if (isFullyDownloaded) 1f else (downloadedCount.toFloat() / totalVerses),
                     sizeBytes = getSurahDiskSize(surahIndex, language)
                 )
             )
-            onProgress?.invoke(downloadedCount, totalVerses)
+            isFullyDownloaded
+        } catch (e: CancellationException) {
+            cleanTempFiles(surahIndex, language)
+            val currentDownloaded = getSurahDownloadedCount(surahIndex, totalVerses, language)
+            updateDownloadStatus(
+                surahIndex,
+                SurahDownloadStatus(
+                    surahIndex = surahIndex,
+                    isDownloaded = totalVerses > 0 && currentDownloaded >= totalVerses,
+                    isDownloading = false,
+                    downloadedVerses = currentDownloaded,
+                    totalVerses = totalVerses,
+                    progress = if (totalVerses > 0) currentDownloaded.toFloat() / totalVerses else 0f,
+                    sizeBytes = getSurahDiskSize(surahIndex, language)
+                )
+            )
+            throw e
+        } catch (e: Exception) {
+            cleanTempFiles(surahIndex, language)
+            val currentDownloaded = getSurahDownloadedCount(surahIndex, totalVerses, language)
+            updateDownloadStatus(
+                surahIndex,
+                SurahDownloadStatus(
+                    surahIndex = surahIndex,
+                    isDownloaded = totalVerses > 0 && currentDownloaded >= totalVerses,
+                    isDownloading = false,
+                    downloadedVerses = currentDownloaded,
+                    totalVerses = totalVerses,
+                    progress = if (totalVerses > 0) currentDownloaded.toFloat() / totalVerses else 0f,
+                    sizeBytes = getSurahDiskSize(surahIndex, language)
+                )
+            )
+            false
+        } finally {
+            activeDownloadJobs.remove(surahIndex)
         }
+    }
 
-        val isFullyDownloaded = downloadedCount == totalVerses
+    fun cancelDownload(surahIndex: Int, totalVerses: Int = 0, language: String = "arabic") {
+        activeDownloadJobs[surahIndex]?.cancel()
+        activeDownloadJobs.remove(surahIndex)
+        cleanTempFiles(surahIndex, language)
+        val currentDownloaded = if (totalVerses > 0) getSurahDownloadedCount(surahIndex, totalVerses, language) else 0
         updateDownloadStatus(
             surahIndex,
             SurahDownloadStatus(
                 surahIndex = surahIndex,
-                isDownloaded = isFullyDownloaded,
+                isDownloaded = totalVerses > 0 && currentDownloaded >= totalVerses,
                 isDownloading = false,
-                downloadedVerses = downloadedCount,
+                downloadedVerses = currentDownloaded,
                 totalVerses = totalVerses,
-                progress = if (isFullyDownloaded) 1f else (downloadedCount.toFloat() / totalVerses),
+                progress = if (totalVerses > 0) currentDownloaded.toFloat() / totalVerses else 0f,
                 sizeBytes = getSurahDiskSize(surahIndex, language)
             )
         )
-        return@withContext isFullyDownloaded
+    }
+
+    private fun cleanTempFiles(surahIndex: Int, language: String) {
+        try {
+            val surahDir = getSurahDirectory(surahIndex, language)
+            surahDir.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { it.delete() }
+        } catch (_: Exception) {}
     }
 
     suspend fun preBufferSurah(surahIndex: Int, totalVerses: Int, language: String) = withContext(Dispatchers.IO) {

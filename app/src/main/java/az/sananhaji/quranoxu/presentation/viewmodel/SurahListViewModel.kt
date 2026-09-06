@@ -117,12 +117,23 @@ class SurahListViewModel(
             }
             is SurahListIntent.DownloadSurah -> {
                 viewModelScope.launch {
+                    val lang = settingsPreferences.audioLanguage
                     controlAudioUseCase.downloadSurah(
                         intent.surahIndex,
                         intent.totalVerses,
-                        settingsPreferences.audioLanguage
+                        lang
                     )
+                    val updated = _state.value.downloadStatuses.toMutableMap()
+                    updated[intent.surahIndex] = controlAudioUseCase.getSurahDownloadStatus(intent.surahIndex, intent.totalVerses, lang)
+                    _state.value = _state.value.copy(downloadStatuses = updated)
                 }
+            }
+            is SurahListIntent.CancelDownloadSurah -> {
+                val lang = settingsPreferences.audioLanguage
+                controlAudioUseCase.cancelDownloadSurah(intent.surahIndex, intent.totalVerses, lang)
+                val updated = _state.value.downloadStatuses.toMutableMap()
+                updated[intent.surahIndex] = controlAudioUseCase.getSurahDownloadStatus(intent.surahIndex, intent.totalVerses, lang)
+                _state.value = _state.value.copy(downloadStatuses = updated)
             }
             is SurahListIntent.DeleteSurahAudio -> {
                 viewModelScope.launch {

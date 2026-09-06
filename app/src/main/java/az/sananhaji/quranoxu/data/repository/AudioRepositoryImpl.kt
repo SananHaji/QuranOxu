@@ -55,6 +55,10 @@ class AudioRepositoryImpl(private val context: Context) : AudioRepositoryContrac
         QuranAudioService.cancelSleepTimer(context)
     }
 
+    override fun setPlaybackSpeed(speed: Float) {
+        QuranAudioService.setPlaybackSpeed(context, speed)
+    }
+
     override suspend fun downloadSurah(
         surahIndex: Int,
         totalVerses: Int,
@@ -62,6 +66,10 @@ class AudioRepositoryImpl(private val context: Context) : AudioRepositoryContrac
         onProgress: ((downloaded: Int, total: Int) -> Unit)?
     ): Boolean {
         return audioCacheManager.downloadSurah(surahIndex, totalVerses, language, onProgress)
+    }
+
+    override fun cancelDownloadSurah(surahIndex: Int, totalVerses: Int, language: String) {
+        audioCacheManager.cancelDownload(surahIndex, totalVerses, language)
     }
 
     override fun getSurahDownloadStatus(surahIndex: Int, totalVerses: Int, language: String): SurahDownloadStatus {

@@ -1,5 +1,7 @@
 package az.sananhaji.quranoxu.presentation.screens
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +54,7 @@ fun BookmarksNotesScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Column(
         modifier = modifier
@@ -123,7 +126,7 @@ fun BookmarksNotesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = if (isLandscape) 20.dp else 80.dp)
                 ) {
                     items(state.bookmarks, key = { "${it.surahIndex}_${it.verseNumber}" }) { bookmark ->
                         Card(
@@ -196,7 +199,7 @@ fun BookmarksNotesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = if (isLandscape) 20.dp else 80.dp)
                 ) {
                     items(state.notes, key = { "${it.surahIndex}_${it.verseNumber}" }) { note ->
                         Card(

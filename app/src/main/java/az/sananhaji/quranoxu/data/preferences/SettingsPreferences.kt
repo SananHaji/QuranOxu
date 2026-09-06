@@ -13,6 +13,7 @@ class SettingsPreferences(context: Context) {
         private const val KEY_SHOW_ARABIC_BY_DEFAULT = "show_arabic_by_default"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_SORT_MODE = "sort_mode"
+        private const val KEY_PLAYBACK_SPEED = "playback_speed"
     }
 
     var selectedLanguage: String
@@ -26,6 +27,10 @@ class SettingsPreferences(context: Context) {
     var showArabicByDefault: Boolean
         get() = prefs.getBoolean(KEY_SHOW_ARABIC_BY_DEFAULT, true)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_ARABIC_BY_DEFAULT, value).apply()
+
+    var playbackSpeed: Float
+        get() = prefs.getFloat(KEY_PLAYBACK_SPEED, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_PLAYBACK_SPEED, value).apply()
 
     var themeMode: ThemeMode
         get() {

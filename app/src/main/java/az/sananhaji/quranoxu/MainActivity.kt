@@ -11,28 +11,36 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import android.content.res.Configuration
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,9 +50,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import az.sananhaji.quranoxu.data.db.QuranDatabaseHelper
 import az.sananhaji.quranoxu.data.preferences.SettingsPreferences
@@ -193,7 +204,6 @@ fun MainAppContent(
     val settingsState by settingsViewModel.state.collectAsState()
     val surahDetailState by surahDetailViewModel.state.collectAsState()
 
-    val currentSurahName = surahDetailState.surah?.nameAzeri
     var isFullscreen by remember { mutableStateOf(false) }
 
     // Request Notification Permission on Android 13+ (API 33+)
@@ -218,59 +228,13 @@ fun MainAppContent(
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = {
-            if (!isFullscreen) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = when {
-                                selectedSurahNav != null -> currentSurahName ?: "Surə"
-                                activeTab == 0 -> "Quranoxu - Surələr"
-                                activeTab == 1 -> "Qeydlər və Notlar"
-                                activeTab == 2 -> "Quran Analitikası"
-                                else -> "Tənzimləmələr"
-                            },
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    navigationIcon = {
-                        if (selectedSurahNav != null) {
-                            IconButton(onClick = { mainViewModel.clearSelectedSurah() }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Geri"
-                                )
-                            }
-                        }
-                    },
-                    actions = {
-                        // Dark / Light Theme Toggle Button
-                        IconButton(
-                            onClick = {
-                                val nextMode = when (settingsState.themeMode) {
-                                    ThemeMode.SYSTEM -> ThemeMode.DARK
-                                    ThemeMode.DARK -> ThemeMode.LIGHT
-                                    ThemeMode.LIGHT -> ThemeMode.DARK
-                                }
-                                settingsViewModel.processIntent(az.sananhaji.quranoxu.presentation.mvi.SettingsIntent.SetThemeMode(nextMode))
-                            }
-                        ) {
-                            Icon(
-                                imageVector = if (settingsState.themeMode == ThemeMode.DARK) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                contentDescription = "Rejimi dəyiş"
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-            }
-        },
         bottomBar = {
-            if (selectedSurahNav == null && !isFullscreen) {
+            if (!isLandscape && selectedSurahNav == null && !isFullscreen) {
                 NavigationBar {
                     NavigationBarItem(
                         selected = activeTab == 0,
@@ -293,80 +257,203 @@ fun MainAppContent(
                     NavigationBarItem(
                         selected = activeTab == 3,
                         onClick = { mainViewModel.setActiveTab(3) },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Ayarlar") },
-                        label = { Text("Ayarlar") }
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Tənzimləmələr") },
+                        label = { Text("Tənzimləmələr") }
                     )
                 }
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            val surahNav = selectedSurahNav
-            when {
-                surahNav != null -> {
-                    SurahDetailScreen(
-                        viewModel = surahDetailViewModel,
-                        surahIndex = surahNav.first,
-                        initialVerseNumber = surahNav.second,
-                        isFullscreen = isFullscreen,
-                        onToggleFullscreen = { isFullscreen = !isFullscreen },
-                        modifier = Modifier.padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)
-                    )
-                }
-                activeTab == 0 -> {
-                    SurahListScreen(
-                        viewModel = surahListViewModel,
-                        onSurahClick = { surahIndex, verseNumber ->
-                            mainViewModel.openSurahDetail(surahIndex, verseNumber)
-                        },
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-                activeTab == 1 -> {
-                    BookmarksNotesScreen(
-                        viewModel = bookmarksNotesViewModel,
-                        onNavigateToSurah = { surahIndex, verseNumber ->
-                            mainViewModel.openSurahDetail(surahIndex, verseNumber)
-                        },
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-                activeTab == 2 -> {
-                    AnalyticsScreen(
-                        viewModel = analyticsViewModel,
-                        onNavigateToSurah = { surahIndex, verseNum ->
-                            mainViewModel.openSurahDetail(surahIndex, verseNum)
-                        },
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-                else -> {
-                    SettingsScreen(
-                        viewModel = settingsViewModel,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    if (isFullscreen) PaddingValues(0.dp)
+                    else if (isLandscape) PaddingValues(0.dp)
+                    else innerPadding
+                )
+        ) {
+            if (isLandscape && selectedSurahNav == null && !isFullscreen) {
+                NavigationRail(
+                    modifier = Modifier
+                        .width(96.dp)
+                        .fillMaxHeight(),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    windowInsets = WindowInsets(0, 0, 0, 0)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.SpaceEvenly,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        NavigationRailItem(
+                            selected = activeTab == 0,
+                            onClick = { mainViewModel.setActiveTab(0) },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Book,
+                                    contentDescription = "Surələr",
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Surələr",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    maxLines = 1
+                                )
+                            },
+                            alwaysShowLabel = true
+                        )
+                        NavigationRailItem(
+                            selected = activeTab == 1,
+                            onClick = { mainViewModel.setActiveTab(1) },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Bookmark,
+                                    contentDescription = "Qeydlər",
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Qeydlər",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    maxLines = 1
+                                )
+                            },
+                            alwaysShowLabel = true
+                        )
+                        NavigationRailItem(
+                            selected = activeTab == 2,
+                            onClick = { mainViewModel.setActiveTab(2) },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.BarChart,
+                                    contentDescription = "Analiz",
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Analiz",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    maxLines = 1
+                                )
+                            },
+                            alwaysShowLabel = true
+                        )
+                        NavigationRailItem(
+                            selected = activeTab == 3,
+                            onClick = { mainViewModel.setActiveTab(3) },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Tənzimləmələr",
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Tənzimləmələr",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 10.sp
+                                    ),
+                                    maxLines = 1
+                                )
+                            },
+                            alwaysShowLabel = true
+                        )
+                    }
                 }
             }
 
-            // Floating Bottom Audio Player Bar
-            AudioPlayerBar(
-                audioState = audioState,
-                onPause = { mainViewModel.pauseAudio() },
-                onResume = { mainViewModel.resumeAudio() },
-                onNext = { mainViewModel.nextAudio() },
-                onPrevious = { mainViewModel.previousAudio() },
-                onStop = { mainViewModel.stopAudio() },
-                onSetSleepTimer = { minutes -> mainViewModel.setSleepTimer(minutes) },
-                onCancelSleepTimer = { mainViewModel.cancelSleepTimer() },
-                onBarClick = {
-                    if (audioState.surahIndex > 0 && audioState.verseNumber > 0) {
-                        mainViewModel.openSurahDetail(audioState.surahIndex, audioState.verseNumber)
-                    }
-                },
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = innerPadding.calculateBottomPadding() + 8.dp)
-            )
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(
+                        if (isLandscape && !isFullscreen) {
+                            PaddingValues(
+                                top = innerPadding.calculateTopPadding(),
+                                bottom = 0.dp
+                            )
+                        } else PaddingValues(0.dp)
+                    )
+            ) {
+                val surahNav = selectedSurahNav
+                when {
+                    surahNav != null -> {
+                        SurahDetailScreen(
+                            viewModel = surahDetailViewModel,
+                            surahIndex = surahNav.first,
+                            initialVerseNumber = surahNav.second,
+                            isFullscreen = isFullscreen,
+                            onToggleFullscreen = { isFullscreen = !isFullscreen },
+                            onBack = { mainViewModel.clearSelectedSurah() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    activeTab == 0 -> {
+                        SurahListScreen(
+                            viewModel = surahListViewModel,
+                            onSurahClick = { surahIndex, verseNumber ->
+                                mainViewModel.openSurahDetail(surahIndex, verseNumber)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    activeTab == 1 -> {
+                        BookmarksNotesScreen(
+                            viewModel = bookmarksNotesViewModel,
+                            onNavigateToSurah = { surahIndex, verseNumber ->
+                                mainViewModel.openSurahDetail(surahIndex, verseNumber)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    activeTab == 2 -> {
+                        AnalyticsScreen(
+                            viewModel = analyticsViewModel,
+                            onNavigateToSurah = { surahIndex, verseNum ->
+                                mainViewModel.openSurahDetail(surahIndex, verseNum)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    else -> {
+                        SettingsScreen(
+                            viewModel = settingsViewModel,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                // Floating Bottom Audio Player Bar
+                AudioPlayerBar(
+                    audioState = audioState,
+                    onPause = { mainViewModel.pauseAudio() },
+                    onResume = { mainViewModel.resumeAudio() },
+                    onNext = { mainViewModel.nextAudio() },
+                    onPrevious = { mainViewModel.previousAudio() },
+                    onStop = { mainViewModel.stopAudio() },
+                    onSetSleepTimer = { minutes -> mainViewModel.setSleepTimer(minutes) },
+                    onCancelSleepTimer = { mainViewModel.cancelSleepTimer() },
+                    onSetPlaybackSpeed = { speed -> mainViewModel.setPlaybackSpeed(speed) },
+                    onBarClick = {
+                        if (audioState.surahIndex > 0 && audioState.verseNumber > 0) {
+                            mainViewModel.openSurahDetail(audioState.surahIndex, audioState.verseNumber)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .widthIn(max = 620.dp)
+                        .padding(bottom = 8.dp)
+                )
+            }
         }
     }
 }

@@ -185,7 +185,16 @@ class SurahDetailViewModel(
                 val audioLang = settingsPreferences.audioLanguage
                 viewModelScope.launch {
                     controlAudioUseCase.downloadSurah(surah.index, surah.verseCount, audioLang)
+                    val st = controlAudioUseCase.getSurahDownloadStatus(surah.index, surah.verseCount, audioLang)
+                    _state.value = _state.value.copy(downloadStatus = st)
                 }
+            }
+            is SurahDetailIntent.CancelCurrentSurahDownload -> {
+                val surah = _state.value.surah ?: return
+                val audioLang = settingsPreferences.audioLanguage
+                controlAudioUseCase.cancelDownloadSurah(surah.index, surah.verseCount, audioLang)
+                val st = controlAudioUseCase.getSurahDownloadStatus(surah.index, surah.verseCount, audioLang)
+                _state.value = _state.value.copy(downloadStatus = st)
             }
             is SurahDetailIntent.DeleteCurrentSurahAudio -> {
                 val surah = _state.value.surah ?: return

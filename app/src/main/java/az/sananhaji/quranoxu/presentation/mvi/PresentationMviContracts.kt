@@ -21,6 +21,7 @@ sealed interface SurahListIntent {
     data class SearchVerses(val query: String) : SurahListIntent
     data class ResetSurahReadProgress(val surahIndex: Int) : SurahListIntent
     data class DownloadSurah(val surahIndex: Int, val totalVerses: Int) : SurahListIntent
+    data class CancelDownloadSurah(val surahIndex: Int, val totalVerses: Int) : SurahListIntent
     data class DeleteSurahAudio(val surahIndex: Int) : SurahListIntent
 }
 
@@ -52,6 +53,7 @@ sealed interface SurahDetailIntent {
     object PlayFullSurah : SurahDetailIntent
     data class MarkVerseRead(val verseNumber: Int) : SurahDetailIntent
     object DownloadCurrentSurah : SurahDetailIntent
+    object CancelCurrentSurahDownload : SurahDetailIntent
     object DeleteCurrentSurahAudio : SurahDetailIntent
 }
 

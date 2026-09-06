@@ -1,5 +1,6 @@
 package az.sananhaji.quranoxu.presentation.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +28,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -72,11 +79,14 @@ fun SurahListScreen(
     val state by viewModel.state.collectAsState()
     var isSortMenuExpanded by remember { mutableStateOf(false) }
 
-    val surahListState = rememberLazyListState()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val surahGridState = rememberLazyGridState()
     val verseListState = rememberLazyListState()
 
     LaunchedEffect(state.sortMode) {
-        surahListState.scrollToItem(0)
+        surahGridState.scrollToItem(0)
         verseListState.scrollToItem(0)
     }
 
@@ -198,113 +208,10 @@ fun SurahListScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // When in standard Surah search mode, show progress banner & surah list
+        // When in standard Surah search mode, show surah list with scrollable last read card
         if (!state.isVerseSearch) {
-            // Main Reading Progress Banner
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Quran (114 Surə • 6,236 Ayə)",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "${progress.totalReadVerses} / 6236 ayə (${if (progress.totalVerses > 0) (progress.totalReadVerses * 100 / progress.totalVerses) else 0}%)",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    LinearProgressIndicator(
-                        progress = { if (progress.totalVerses > 0) progress.totalReadVerses.toFloat() / progress.totalVerses else 0f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                    )
-                }
-            }
-
-            // Dedicated Prominent Last Read Location Card
-            if (progress.lastReadSurahIndex > 0) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Bookmark,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Son Qaldığınız Yer",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
-                                )
-                                Text(
-                                    text = "${progress.lastReadSurahName} • ${progress.lastReadVerseNumber}-ci ayə",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = { onSurahClick(progress.lastReadSurahIndex, progress.lastReadVerseNumber) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Davam et", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Davam et",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (state.isLoading && state.filteredSurahs.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -324,11 +231,80 @@ fun SurahListScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    state = surahListState,
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (isLandscape) 2 else 1),
+                    state = surahGridState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(top = 4.dp, bottom = if (isLandscape) 20.dp else 80.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Dedicated Compact Last Read Location Card (scrolls together with surahs)
+                    if (progress.lastReadSurahIndex > 0) {
+                        item(
+                            span = { GridItemSpan(maxLineSpan) },
+                            key = "last_read_card"
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                                    .clickable { onSurahClick(progress.lastReadSurahIndex, progress.lastReadVerseNumber) },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Bookmark,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = "Son Qaldığınız Yer",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+                                            )
+                                            Text(
+                                                text = "${progress.lastReadSurahName} • ${progress.lastReadVerseNumber}-ci ayə",
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = { onSurahClick(progress.lastReadSurahIndex, progress.lastReadVerseNumber) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Davam et", modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Davam et",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     items(
                         items = state.filteredSurahs,
                         key = { it.index }
@@ -341,8 +317,8 @@ fun SurahListScreen(
                             onResetReadProgress = { viewModel.processIntent(SurahListIntent.ResetSurahReadProgress(surah.index)) },
                             downloadStatus = state.downloadStatuses[surah.index],
                             onDownloadSurah = { viewModel.processIntent(SurahListIntent.DownloadSurah(surah.index, surah.verseCount)) },
-                            onDeleteSurahAudio = { viewModel.processIntent(SurahListIntent.DeleteSurahAudio(surah.index)) },
-                            modifier = Modifier.padding(vertical = 6.dp)
+                            onCancelDownloadSurah = { viewModel.processIntent(SurahListIntent.CancelDownloadSurah(surah.index, surah.verseCount)) },
+                            onDeleteSurahAudio = { viewModel.processIntent(SurahListIntent.DeleteSurahAudio(surah.index)) }
                         )
                     }
                 }
@@ -392,7 +368,7 @@ fun SurahListScreen(
                 LazyColumn(
                     state = verseListState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = if (isLandscape) 20.dp else 80.dp)
                 ) {
                     items(
                         items = state.verseSearchResults,

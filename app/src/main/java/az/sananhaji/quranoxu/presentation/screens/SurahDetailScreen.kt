@@ -1,5 +1,6 @@
 package az.sananhaji.quranoxu.presentation.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.PlayArrow
@@ -38,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ import az.sananhaji.quranoxu.presentation.viewmodel.SurahDetailViewModel
 
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Close
 
 @Composable
 fun SurahDetailScreen(
@@ -67,6 +71,7 @@ fun SurahDetailScreen(
     initialVerseNumber: Int? = null,
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(surahIndex, initialVerseNumber) {
@@ -81,6 +86,9 @@ fun SurahDetailScreen(
     val listState = rememberLazyListState()
     var showGoToVerseDialog by remember { mutableStateOf(false) }
     var showDeleteAudioDialog by remember { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // Auto-scroll to the currently playing verse
     LaunchedEffect(audioState.verseNumber, audioState.surahIndex) {
@@ -115,15 +123,20 @@ fun SurahDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = if (isFullscreen) 48.dp else 8.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(
+                top = if (isFullscreen) 48.dp else 8.dp,
+                bottom = if (isLandscape) 24.dp
+                else if (audioState.surahIndex > 0 && audioState.verseNumber > 0) 130.dp
+                else 80.dp
+            )
         ) {
             // Surah Banner Header
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(20.dp),
+                        .padding(vertical = if (isLandscape) 4.dp else 8.dp),
+                    shape = RoundedCornerShape(if (isLandscape) 16.dp else 20.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
@@ -131,13 +144,124 @@ fun SurahDetailScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(if (isLandscape) 12.dp else 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Back Button & Offline Audio Download / Delete Status Chip
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                            ) {
+                                IconButton(
+                                    onClick = onBack,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Geri",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+
+                                // Offline Audio Download / Delete Status Chip
+                                val dl = state.downloadStatus
+                                when {
+                                    dl.isDownloading -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                                .padding(start = 8.dp, end = 4.dp, top = 3.dp, bottom = 3.dp)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(13.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(5.dp))
+                                            Text(
+                                                text = "${(dl.progress * 100).toInt()}%",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            IconButton(
+                                                onClick = { viewModel.processIntent(SurahDetailIntent.CancelCurrentSurahDownload) },
+                                                modifier = Modifier.size(22.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Yükləməni ləğv et",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    dl.isDownloaded -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                                .clickable { showDeleteAudioDialog = true }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CloudDone,
+                                                contentDescription = "Oflayn yüklənib (Silmək üçün toxunun)",
+                                                modifier = Modifier.size(15.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Oflayn",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                                .clickable { viewModel.processIntent(SurahDetailIntent.DownloadCurrentSurah) }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CloudDownload,
+                                                contentDescription = "Oflayn Yüklə",
+                                                modifier = Modifier.size(15.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Səsi yüklə",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontSize = 11.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             // Fullscreen Toggle Button
                             IconButton(
                                 onClick = onToggleFullscreen,
@@ -180,28 +304,31 @@ fun SurahDetailScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             // Go to Verse Button
                             OutlinedButton(
                                 onClick = { showGoToVerseDialog = true },
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Tag,
                                     contentDescription = "Ayəyə keç",
                                     modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Ayəyə keç", style = MaterialTheme.typography.labelMedium)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Ayəyə keç",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1
+                                )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
 
                             // Play Full Surah Button
                             Button(
@@ -209,70 +336,21 @@ fun SurahDetailScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
-                                )
+                                ),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Surəni Dinlə",
-                                        tint = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = "Surəni Dinlə", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Offline Audio Download / Delete Button
-                            val dl = state.downloadStatus
-                            when {
-                                dl.isDownloading -> {
-                                    OutlinedButton(
-                                        onClick = {},
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(14.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "${(dl.progress * 100).toInt()}%",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-                                }
-                                dl.isDownloaded -> {
-                                    OutlinedButton(
-                                        onClick = { showDeleteAudioDialog = true },
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CloudDone,
-                                            contentDescription = "Oflayn yüklənib (Silmək üçün toxunun)",
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(text = "Oflayn", style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                                else -> {
-                                    OutlinedButton(
-                                        onClick = { viewModel.processIntent(SurahDetailIntent.DownloadCurrentSurah) },
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CloudDownload,
-                                            contentDescription = "Oflayn Yüklə",
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(text = "Yüklə", style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Surəni Dinlə",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Surəni Dinlə",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1
+                                )
                             }
                         }
                     }

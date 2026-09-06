@@ -55,6 +55,7 @@ class MainViewModel(
     fun previousAudio() = controlAudioUseCase.previousVerse()
     fun setSleepTimer(minutes: Int) = controlAudioUseCase.setSleepTimer(minutes)
     fun cancelSleepTimer() = controlAudioUseCase.cancelSleepTimer()
+    fun setPlaybackSpeed(speed: Float) = controlAudioUseCase.setPlaybackSpeed(speed)
 
     class Factory(
         private val controlAudioUseCase: ControlAudioUseCase,

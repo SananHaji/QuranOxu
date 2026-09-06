@@ -1,5 +1,7 @@
 package az.sananhaji.quranoxu.presentation.screens
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +59,7 @@ fun AnalyticsScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val progress = state.overallProgress
 
     if (state.isLoading) {
@@ -328,6 +331,6 @@ fun AnalyticsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 20.dp else 80.dp))
     }
 }

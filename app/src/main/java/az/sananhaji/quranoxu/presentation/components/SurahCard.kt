@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import az.sananhaji.quranoxu.domain.model.SurahDownloadStatus
 
@@ -56,6 +57,7 @@ fun SurahCard(
     onResetReadProgress: (() -> Unit)? = null,
     downloadStatus: SurahDownloadStatus? = null,
     onDownloadSurah: (() -> Unit)? = null,
+    onCancelDownloadSurah: (() -> Unit)? = null,
     onDeleteSurahAudio: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -212,7 +214,7 @@ fun SurahCard(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .padding(start = 6.dp, end = if (onCancelDownloadSurah != null) 4.dp else 6.dp, top = 2.dp, bottom = 2.dp)
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(12.dp),
@@ -226,6 +228,17 @@ fun SurahCard(
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    if (onCancelDownloadSurah != null) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Yükləməni ləğv et",
+                                            modifier = Modifier
+                                                .size(13.dp)
+                                                .clickable { onCancelDownloadSurah() },
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                             downloadStatus.isDownloaded -> {

@@ -117,6 +117,22 @@ esac
 CLASSPATH="\\\"\\\""
 
 
+# Ensure JAVA_HOME has a full JDK (including jlink), not a stripped IDE extension JRE
+if [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/jlink" ] ; then
+    if [ -x "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/jlink" ] ; then
+        export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+    elif [ -x "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/jlink" ] ; then
+        export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+    elif [ -x "/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home/bin/jlink" ] ; then
+        export JAVA_HOME="/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home"
+    elif command -v /usr/libexec/java_home >/dev/null 2>&1 ; then
+        DETECTED_JDK=$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17 2>/dev/null || /usr/libexec/java_home 2>/dev/null)
+        if [ -n "$DETECTED_JDK" ] && [ -x "$DETECTED_JDK/bin/jlink" ] ; then
+            export JAVA_HOME="$DETECTED_JDK"
+        fi
+    fi
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then

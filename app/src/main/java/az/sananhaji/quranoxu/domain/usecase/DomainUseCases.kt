@@ -86,11 +86,19 @@ class ControlAudioUseCase(private val audioRepository: AudioRepositoryContract) 
         audioRepository.cancelSleepTimer()
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        audioRepository.setPlaybackSpeed(speed)
+    }
+
     val downloadStatusFlow: StateFlow<Map<Int, az.sananhaji.quranoxu.domain.model.SurahDownloadStatus>>
         get() = audioRepository.downloadStatusFlow
 
     suspend fun downloadSurah(surahIndex: Int, totalVerses: Int, language: String): Boolean {
         return audioRepository.downloadSurah(surahIndex, totalVerses, language)
+    }
+
+    fun cancelDownloadSurah(surahIndex: Int, totalVerses: Int = 0, language: String = "arabic") {
+        audioRepository.cancelDownloadSurah(surahIndex, totalVerses, language)
     }
 
     fun getSurahDownloadStatus(surahIndex: Int, totalVerses: Int, language: String): az.sananhaji.quranoxu.domain.model.SurahDownloadStatus {

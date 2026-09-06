@@ -18,6 +18,7 @@ import androidx.core.app.NotificationCompat
 import az.sananhaji.quranoxu.MainActivity
 import az.sananhaji.quranoxu.data.audio.AudioCacheManager
 import az.sananhaji.quranoxu.data.db.QuranDatabaseHelper
+import az.sananhaji.quranoxu.data.preferences.SettingsPreferences
 import az.sananhaji.quranoxu.domain.model.AudioStateEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,7 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var preBufferJob: kotlinx.coroutines.Job? = null
+    private var currentPlaybackSpeed: Float = 1.0f
 
     private val binder = LocalBinder()
 
@@ -58,6 +60,7 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
         const val ACTION_PREV = "az.sananhaji.quranoxu.ACTION_PREV"
         const val ACTION_SET_SLEEP_TIMER = "az.sananhaji.quranoxu.ACTION_SET_SLEEP_TIMER"
         const val ACTION_CANCEL_SLEEP_TIMER = "az.sananhaji.quranoxu.ACTION_CANCEL_SLEEP_TIMER"
+        const val ACTION_SET_PLAYBACK_SPEED = "az.sananhaji.quranoxu.ACTION_SET_PLAYBACK_SPEED"
 
         const val EXTRA_SURAH_INDEX = "EXTRA_SURAH_INDEX"
         const val EXTRA_VERSE_NUMBER = "EXTRA_VERSE_NUMBER"
@@ -65,6 +68,7 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
         const val EXTRA_SURAH_NAME = "EXTRA_SURAH_NAME"
         const val EXTRA_AUDIO_LANGUAGE = "EXTRA_AUDIO_LANGUAGE"
         const val EXTRA_SLEEP_MINUTES = "EXTRA_SLEEP_MINUTES"
+        const val EXTRA_PLAYBACK_SPEED = "EXTRA_PLAYBACK_SPEED"
 
         private val _audioStateFlow = MutableStateFlow(AudioStateEntity())
         val audioStateFlow: StateFlow<AudioStateEntity> = _audioStateFlow.asStateFlow()
@@ -129,6 +133,14 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
             val intent = Intent(context, QuranAudioService::class.java).apply { action = ACTION_CANCEL_SLEEP_TIMER }
             context.startService(intent)
         }
+
+        fun setPlaybackSpeed(context: Context, speed: Float) {
+            val intent = Intent(context, QuranAudioService::class.java).apply {
+                action = ACTION_SET_PLAYBACK_SPEED
+                putExtra(EXTRA_PLAYBACK_SPEED, speed)
+            }
+            context.startService(intent)
+        }
     }
 
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
@@ -137,6 +149,8 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
         super.onCreate()
         audioCacheManager = AudioCacheManager(applicationContext)
         dbHelper = QuranDatabaseHelper(applicationContext)
+        currentPlaybackSpeed = SettingsPreferences(applicationContext).playbackSpeed
+        _audioStateFlow.value = _audioStateFlow.value.copy(playbackSpeed = currentPlaybackSpeed)
         createNotificationChannel()
     }
 
@@ -162,8 +176,27 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
                 startSleepTimer(minutes)
             }
             ACTION_CANCEL_SLEEP_TIMER -> cancelSleepTimer()
+            ACTION_SET_PLAYBACK_SPEED -> {
+                val speed = intent.getFloatExtra(EXTRA_PLAYBACK_SPEED, 1.0f)
+                applyPlaybackSpeed(speed)
+            }
         }
         return START_STICKY
+    }
+
+    private fun applyPlaybackSpeed(speed: Float) {
+        currentPlaybackSpeed = speed
+        SettingsPreferences(applicationContext).playbackSpeed = speed
+        mediaPlayer?.let { player ->
+            try {
+                val params = player.playbackParams
+                params.speed = speed
+                player.playbackParams = params
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        _audioStateFlow.value = _audioStateFlow.value.copy(playbackSpeed = speed)
     }
 
     private fun acquireLocks() {
@@ -230,7 +263,8 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
                     totalVerses = totalVerses,
                     audioLanguage = audioLanguage,
                     isBuffering = !isCurrentlyCached,
-                    isOfflineAvailable = isCurrentlyCached
+                    isOfflineAvailable = isCurrentlyCached,
+                    playbackSpeed = currentPlaybackSpeed
                 )
                 _audioStateFlow.value = initialState
                 startForeground(NOTIFICATION_ID, buildNotification(initialState))
@@ -259,13 +293,22 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
                     setOnErrorListener(this@QuranAudioService)
                     prepare()
                     start()
+
+                    try {
+                        val params = playbackParams
+                        params.speed = currentPlaybackSpeed
+                        playbackParams = params
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
                 mediaPlayer = player
 
                 val playingState = initialState.copy(
                     isPlaying = true,
                     isBuffering = false,
-                    isOfflineAvailable = localAudioFile != null && localAudioFile.exists()
+                    isOfflineAvailable = localAudioFile != null && localAudioFile.exists(),
+                    playbackSpeed = currentPlaybackSpeed
                 )
                 _audioStateFlow.value = playingState
                 updateNotification(playingState)
@@ -320,7 +363,16 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
     private fun resumePlayback() {
         acquireLocks()
         mediaPlayer?.let {
-            if (!it.isPlaying) it.start()
+            if (!it.isPlaying) {
+                it.start()
+                try {
+                    val params = it.playbackParams
+                    params.speed = currentPlaybackSpeed
+                    it.playbackParams = params
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
         val current = _audioStateFlow.value
         if (current.surahIndex > 0 && current.verseNumber > 0) {
@@ -338,7 +390,7 @@ class QuranAudioService : Service(), MediaPlayer.OnCompletionListener, MediaPlay
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
-        _audioStateFlow.value = AudioStateEntity()
+        _audioStateFlow.value = AudioStateEntity(playbackSpeed = currentPlaybackSpeed)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

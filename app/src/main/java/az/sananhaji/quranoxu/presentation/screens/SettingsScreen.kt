@@ -1,5 +1,7 @@
 package az.sananhaji.quranoxu.presentation.screens
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Card
@@ -55,6 +59,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showClearCacheDialog by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Column(
         modifier = modifier
@@ -301,10 +307,10 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 listOf(
-                    ThemeMode.SYSTEM to "Sistem standartı",
-                    ThemeMode.LIGHT to "İşıqlı rejim (Light)",
-                    ThemeMode.DARK to "Qaranlıq rejim (Dark)"
-                ).forEach { (mode, title) ->
+                    Triple(ThemeMode.SYSTEM, "Sistem standartı", Icons.Default.BrightnessAuto),
+                    Triple(ThemeMode.LIGHT, "İşıqlı rejim (Light)", Icons.Default.LightMode),
+                    Triple(ThemeMode.DARK, "Qaranlıq rejim (Dark)", Icons.Default.DarkMode)
+                ).forEach { (mode, title, icon) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -318,9 +324,9 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
-                            imageVector = Icons.Default.DarkMode,
+                            imageVector = icon,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = if (state.themeMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -334,7 +340,7 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 20.dp else 80.dp))
     }
 
     if (showClearCacheDialog) {
