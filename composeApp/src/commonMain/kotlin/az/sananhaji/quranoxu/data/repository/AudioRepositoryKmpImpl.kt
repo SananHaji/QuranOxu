@@ -73,13 +73,18 @@ class AudioRepositoryKmpImpl(
 
         audioEngine.playUrl(effectiveUrl) {
             scope.launch {
+                println("[AudioDebug] audioEngine onCompleted: surah=$surahIndex, verse=$verseNumber, total=$totalVerses")
                 val current = _audioStateFlow.value
                 if (current.isPlaying && current.surahIndex == surahIndex && current.verseNumber == verseNumber) {
                     if (verseNumber < totalVerses) {
+                        println("[AudioDebug] Auto-advancing to verse ${verseNumber + 1}")
                         playVerse(surahIndex, verseNumber + 1, totalVerses, surahName, audioLanguage)
                     } else {
+                        println("[AudioDebug] End of surah reached, stopping")
                         stopAudio()
                     }
+                } else {
+                    println("[AudioDebug] Skipped advancing: isPlaying=${current.isPlaying}, currentSurah=${current.surahIndex}, currentVerse=${current.verseNumber}")
                 }
             }
         }
@@ -163,39 +168,44 @@ class AudioRepositoryKmpImpl(
 
         return withContext(Dispatchers.Default) {
             val success = audioEngine.downloadSurah(surahIndex, totalVerses, language) { downloaded, total ->
-                scope.launch {
-                    val updated = _downloadStatusFlow.value.toMutableMap()
-                    updated[surahIndex] = SurahDownloadStatus(
-                        surahIndex = surahIndex,
-                        isDownloading = true,
-                        downloadedVerses = downloaded,
-                        totalVerses = total,
-                        progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
-                    )
-                    _downloadStatusFlow.value = updated
-                    onProgress?.invoke(downloaded, total)
+                if (downloaded < total) {
+                    scope.launch {
+                        val updated = _downloadStatusFlow.value.toMutableMap()
+                        updated[surahIndex] = SurahDownloadStatus(
+                            surahIndex = surahIndex,
+                            isDownloading = true,
+                            isDownloaded = false,
+                            downloadedVerses = downloaded,
+                            totalVerses = total,
+                            progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+                        )
+                        _downloadStatusFlow.value = updated
+                        onProgress?.invoke(downloaded, total)
+                    }
                 }
             }
 
-            val finalMap = _downloadStatusFlow.value.toMutableMap()
-            if (success) {
-                finalMap[surahIndex] = SurahDownloadStatus(
-                    surahIndex = surahIndex,
-                    isDownloaded = true,
-                    isDownloading = false,
-                    downloadedVerses = totalVerses,
-                    totalVerses = totalVerses,
-                    progress = 1.0f
-                )
-            } else {
-                finalMap[surahIndex] = SurahDownloadStatus(
-                    surahIndex = surahIndex,
-                    isDownloaded = false,
-                    isDownloading = false,
-                    totalVerses = totalVerses
-                )
+            scope.launch {
+                val finalMap = _downloadStatusFlow.value.toMutableMap()
+                if (success) {
+                    finalMap[surahIndex] = SurahDownloadStatus(
+                        surahIndex = surahIndex,
+                        isDownloaded = true,
+                        isDownloading = false,
+                        downloadedVerses = totalVerses,
+                        totalVerses = totalVerses,
+                        progress = 1.0f
+                    )
+                } else {
+                    finalMap[surahIndex] = SurahDownloadStatus(
+                        surahIndex = surahIndex,
+                        isDownloaded = false,
+                        isDownloading = false,
+                        totalVerses = totalVerses
+                    )
+                }
+                _downloadStatusFlow.value = finalMap
             }
-            _downloadStatusFlow.value = finalMap
             success
         }
     }

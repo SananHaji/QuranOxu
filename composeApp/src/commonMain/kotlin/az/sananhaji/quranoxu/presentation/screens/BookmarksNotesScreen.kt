@@ -52,6 +52,10 @@ fun BookmarksNotesScreen(
     onNavigateToSurah: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.processIntent(BookmarksNotesIntent.LoadData)
+    }
+
     val state by viewModel.state.collectAsState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {

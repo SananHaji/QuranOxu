@@ -1,5 +1,7 @@
 package az.sananhaji.quranoxu.domain.model
 
+import kotlinx.serialization.Serializable
+
 enum class SurahSortMode(val displayName: String) {
     QURAN_ORDER("Qurandakı sıra"),
     REVELATION_ORDER("Nüzul sırası"),
@@ -35,6 +37,7 @@ data class VerseEntity(
     val noteText: String? = null
 )
 
+@Serializable
 data class BookmarkEntity(
     val id: Long = 0,
     val surahIndex: Int,
@@ -43,6 +46,7 @@ data class BookmarkEntity(
     val timestamp: Long = az.sananhaji.quranoxu.util.getCurrentTimeMillis()
 )
 
+@Serializable
 data class UserNoteEntity(
     val id: Long = 0,
     val surahIndex: Int,

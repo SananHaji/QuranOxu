@@ -65,9 +65,10 @@ actual class PlatformAudioEngine actual constructor() {
 
         endObserver = NSNotificationCenter.defaultCenter.addObserverForName(
             name = AVPlayerItemDidPlayToEndTimeNotification,
-            `object` = playerItem,
+            `object` = null,
             queue = NSOperationQueue.mainQueue
         ) { _ ->
+            println("[AudioDebug] AVPlayerItemDidPlayToEndTimeNotification triggered! Invoking onCompleted()")
             onCompleted()
         }
 
